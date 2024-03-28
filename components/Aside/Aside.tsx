@@ -7,7 +7,6 @@ type AsideType = {
   users: UserType[];
   userEmail: string;
   onSelectChat: (id: string) => void;
-
   handleSelectPrivatesChat: (email: string) => void;
 };
 
@@ -27,10 +26,11 @@ const Aside = ({
         {chats.map((chat) => {
           return (
             <div
+            key={chat.id}
               onClick={() => {
                 onSelectChat(chat.id);
               }}
-              className={/* classNames(chat.sender === user.displayName ? "" : "text-end",  */ "text-white"}
+              className={"text-white"}
             >
               {chat.sender} - chat name
             </div>
@@ -40,6 +40,7 @@ const Aside = ({
           if (user.email !== userEmail) {
             return (
               <div
+              key={user.id}
                 onClick={() => {
                   handleSelectPrivatesChat(user.email);
                 }}
