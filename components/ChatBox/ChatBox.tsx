@@ -12,7 +12,7 @@ type ChatBoxType = {
   ref: React.MutableRefObject<null>;
 };
 
-const ChatBox = ({ messages, user, ref }: ChatBoxType) => {
+const ChatBox = forwardRef<HTMLDivElement, ChatBoxType>(({ messages, user }, ref) => {
   return (
     <div className=" overflow-auto pr-10">
       <div className="flex flex-col  gap-3 mt-3 pb-8">
@@ -45,5 +45,5 @@ const ChatBox = ({ messages, user, ref }: ChatBoxType) => {
       </div>
     </div>
   );
-};
-export default forwardRef(ChatBox);
+});
+export default ChatBox;
