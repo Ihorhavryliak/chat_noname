@@ -8,6 +8,7 @@ import {
   arrayUnion,
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -53,7 +54,6 @@ export type MessageType = {
 
 export default function Home() {
   const [user] = useAuthState(auth);
-  console.log(user, "user.>>");
   const [users, setUsers] = useState([] as UserType[]);
   const [chats, setChats] = useState([] as ChatType[]);
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -65,27 +65,26 @@ export default function Home() {
   const [open, setOpen] = useState(false);
   const [linkForChanel, setLinkForChanel] = useState("");
   const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
-
+ 
   useEffect(() => {
     const listener = onAuthStateChanged(auth, async (user) => {
       if (user?.email) {
         const chatId = sessionStorage.getItem("chatId");
         if (chatId) {
           const fetch = async () => {
-            const q = query(collection(db, "chats"), where("id", "==", chatId));
-            const users = await getDocs(q).then((snapshot) => {
-              const users = snapshot.docs.map((doc) => ({
-                data: doc.data()
-              }));
-              return users[0]?.data?.users;
+            const responseUser = await getDoc(doc(db, "chats", chatId)).then((docSnapshot) => {
+              const data = docSnapshot.data();
+              return data;
             });
-            debugger;
-            if (users && user?.email && !users.includes(user?.email)) {
-              const newUsers = [...users, user?.email];
-              const response = await updateDoc(doc(db, "chats", chatId), { users: newUsers });
-              debugger;
-            } else {
-              console.error("Document does not exist");
+
+            const email = user?.email as string;
+            const userEmail = responseUser?.users || "";
+
+            if (user?.email && !userEmail?.includes(email) && user?.email) {
+              const newUsers = arrayUnion(...[...userEmail, user?.email]);
+              const response = await updateDoc(doc(db, "chats", chatId), {
+                users: newUsers
+              });
             }
           };
           fetch();
@@ -127,10 +126,10 @@ export default function Home() {
   const { dataInput, error, handleSubmit, onSubmit, register, watch } = useCreateChatName({ handleCreateChat });
   useEffect(() => {
     if (user?.email) {
-      onSnapshot(query(collection(db, "chats"), where("email", "==", user.email)), (snapshot) => {
+      onSnapshot(query(collection(db, "chats"), where("users", "array-contains", user.email)), (snapshot) => {
         setChats(
           snapshot.docs.map((doc) => ({
-            id: doc.data().id,
+            id: doc.id,
             email: doc.data().email,
             isRead: doc.data().isRead,
             message: doc.data().message,
@@ -147,7 +146,7 @@ export default function Home() {
       onSnapshot(query(collection(db, "users")), (snapshot) => {
         setUsers(
           snapshot.docs.map((doc) => ({
-            id: doc.data().id,
+            id: doc.id,
             email: doc.data().email,
             firstName: doc.data().firstName,
             lastName: doc.data().lastName,
@@ -337,7 +336,7 @@ export default function Home() {
                         addDoc(collection(db, `messages`), {
                           email: user.email,
                           chat_id: selectedChatId,
-                          id: uuidv4(),
+
                           isRead: false,
                           message: textareaText,
                           sender: user.displayName,
@@ -348,11 +347,10 @@ export default function Home() {
                           })
                           .catch((err) => alert(err.message));
                       } else if (selectedChatPrivateId) {
-                        console.log(selectedChatPrivateId, "selectedChatPrivateId.>");
                         addDoc(collection(db, `message_privates`), {
                           email: user.email,
                           chat_id: selectedChatPrivateId,
-                          id: uuidv4(),
+
                           isRead: false,
                           message: textareaText,
                           sender: user.displayName,
@@ -432,7 +430,6 @@ function SignIn() {
       );
       if (!isEmail) {
         addDoc(collection(db, `users`), {
-          id: uuidv4(),
           email: res.user.email,
           firstName: res.user.displayName
         }).catch((err) => alert(err.message));
