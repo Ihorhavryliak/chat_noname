@@ -26,6 +26,11 @@ import Input from "@/components/Input/Input";
 import useCreateChatName from "./hooks/useCreateChatName";
 import Avatar from "react-avatar";
 import SignIn from "@/components/SignIn/SignIn";
+import useHandleSelectPrivateChat from "./hooks/useHandleSelectPrivateChat";
+import useHandleCreateChat from "./hooks/useHandleCreateChat";
+import useGetUsers from "./hooks/useGetUsers";
+import useGetChats from "./hooks/useGetChats";
+import useGetMessage from "./hooks/useGetMessage";
 
 export type UserType = {
   id: string;
@@ -50,7 +55,7 @@ export type MessageType = {
   isRead: boolean;
   message: string;
   sender: string;
-  time: string;
+  time: number | string;
   receiverEmail?: string;
   receiver?: string;
   email?: string;
@@ -71,223 +76,42 @@ export default function Home() {
   const [linkForChanel, setLinkForChanel] = useState("");
   const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
   const [headerName, setSetHeaderName] = useState("");
-  console.log(messages, "messages");
-  useEffect(() => {
-    const listener = onAuthStateChanged(auth, async (user) => {
-      if (user?.email) {
-        const chatId = sessionStorage.getItem("chatId");
-        if (chatId) {
-          const fetch = async () => {
-            const responseUser = await getDoc(doc(db, "chats", chatId)).then((docSnapshot) => {
-              const data = docSnapshot.data();
-              return data;
-            });
 
-            const email = user?.email as string;
-            const userEmail = responseUser?.users || "";
-
-            if (user?.email && !userEmail?.includes(email) && user?.email) {
-              const newUsers = arrayUnion(...[...userEmail, user?.email]);
-              await updateDoc(doc(db, "chats", chatId), {
-                users: newUsers
-              });
-            }
-          };
-          fetch();
-          setSelectedChatId(chatId);
-          sessionStorage.removeItem("chatId");
-        }
-      }
-    });
-    return () => {
-      listener();
-    };
-  }, [auth]);
-  const handleCreateChat = useCallback(
-    async (chatName: string) => {
-      try {
-        const docRef = await addDoc(collection(db, "chats"), {
-          chatName: chatName,
-          email: user?.email,
-          lastMessage: textareaText,
-          sender: user?.displayName,
-          time: serverTimestamp(),
-          isRead: false,
-          users: [user?.email]
-        });
-        if (docRef) {
-          setIsOpenLinkForChanel(true);
-          setTextareaText("");
-          setLinkForChanel(docRef.id);
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    [user, textareaText]
-  );
-
+  const { handleCreateChat } = useHandleCreateChat({
+    user,
+    textareaText,
+    setSelectedChatId,
+    setIsOpenLinkForChanel,
+    setTextareaText,
+    setLinkForChanel
+  });
   const { dataInput, error, handleSubmit, onSubmit, register, watch } = useCreateChatName({ handleCreateChat });
-  useEffect(() => {
-    if (user?.email) {
-      onSnapshot(query(collection(db, "chats"), where("users", "array-contains-any", [user.email])), (snapshot) => {
-        setChats(
-          snapshot.docs.map((doc) => ({
-            id: doc.id,
-            email: doc.data().email,
-            isRead: doc.data().isRead,
-            message: doc.data().message,
-            sender: doc.data().sender,
-            time: doc.data().time,
-            chatName: doc.data().chatName,
-            receiverName: headerName
-          }))
-        );
-      });
-    }
-  }, [user?.email]);
-  useEffect(() => {
-    if (user?.email) {
-      onSnapshot(query(collection(db, "users")), (snapshot) => {
-        setUsers(
-          snapshot.docs.map((doc) => ({
-            id: doc.id,
-            email: doc.data().email,
-            firstName: doc.data().firstName,
-            lastName: doc.data().lastName,
-            password: doc.data().password
-          }))
-        );
-      });
-    }
-  }, [user]);
-  useEffect(() => {
-    if (selectedChatId.length > 0) {
-      onSnapshot(query(collection(db, "messages"), where("chat_id", "==", selectedChatId)), (snapshot) => {
-        setMessages(
-          snapshot.docs.map((doc) => ({
-            chat_id: doc.data().chat_id,
-            id: doc.id,
-            isRead: doc.data().isRead,
-            message: doc.data().message,
-            sender: doc.data().sender,
-            time: doc.data().time,
-            email: doc.data().email,
-            receiverName: headerName
-          }))
-        );
-      });
-      setSelectedChatPrivateId("");
-    }
-  }, [selectedChatId, headerName]);
-  useEffect(() => {
-    if (selectedChatPrivateId?.length > 0) {
-      onSnapshot(
-        query(collection(db, "message_privates"), where("chat_id", "==", selectedChatPrivateId[0])),
-        (snapshot) => {
-          setMessages(
-            snapshot.docs.map((doc) => ({
-              chat_id: doc.data().chat_id,
-              id: doc.id,
-              isRead: doc.data().isRead,
-              message: doc.data().message,
-              sender: doc.data().sender,
-              time: doc.data().time,
-              email: doc.data().email,
-              receiverName: headerName
-            }))
-          );
-        }
-      );
-    }
-  }, [selectedChatPrivateId, headerName]);
+  useGetChats({ user, setChats, headerName });
+  useGetUsers({ user, setUsers });
+
+  useGetMessage({ headerName, selectedChatId, setMessages, setSelectedChatPrivateId });
+
+  const { handleSelectPrivateChat } = useHandleSelectPrivateChat({
+    textareaText,
+    setTextareaText,
+    selectedChatPrivateId,
+    setMessages,
+    headerName,
+    setEmailReceiver,
+    user,
+    setSelectedChatPrivateId
+  });
 
   const scrollToBottom = () => {
     if (lastMessageDiv && lastMessageDiv.current) {
       const currentElement = lastMessageDiv.current as HTMLElement;
-      currentElement.scrollIntoView({
-        // behavior: "smooth",
-        // block: "start"
-      });
+      currentElement.scrollIntoView({});
     }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-  const handleSelectPrivateChat = useCallback(
-    async (receiverEmail: string) => {
-      try {
-        setEmailReceiver(receiverEmail);
-
-        const q = query(
-          collection(db, "chat_privates"),
-          where("receiverEmail", "==", user?.email),
-          where("email", "==", receiverEmail)
-        );
-
-        const q2 = query(
-          collection(db, "chat_privates"),
-          where("receiverEmail", "==", receiverEmail),
-          where("email", "==", user?.email)
-        );
-        // Execute the query once to get a snapshot of the result set
-        const response = await getDocs(q)
-          .then((snapshot) => {
-            const result = snapshot.docs.map((doc) => ({
-              id: doc.id
-            }));
-            return result;
-          })
-          .catch((error) => {
-            console.error("Error getting documents: ", error);
-          });
-        // Execute the query once to get a snapshot of the result set
-        const responseAnother = await getDocs(q2)
-          .then((snapshot) => {
-            const result = snapshot.docs.map((doc) => ({
-              id: doc.id
-            }));
-            return result;
-          })
-          .catch((error) => {
-            console.error("Error getting documents: ", error);
-          });
-
-        if (response && response.length) {
-          setSelectedChatPrivateId((prev) => {
-            return [...prev, response[0]?.id];
-          });
-        } else if (responseAnother && responseAnother.length) {
-          setSelectedChatPrivateId((prev) => {
-            return [...prev, responseAnother[0]?.id];
-          });
-        } else {
-          try {
-            debugger;
-            const responseRef = await addDoc(collection(db, `chat_privates`), {
-              email: user?.email,
-              receiverEmail: receiverEmail,
-              lastMessage: textareaText,
-              sender: user?.displayName,
-              time: serverTimestamp(),
-              isRead: false
-            });
-            setSelectedChatPrivateId((prev) => {
-              return [...prev, responseRef?.id];
-            });
-            setTextareaText("");
-          } catch (error) {
-            alert(error);
-          }
-        }
-        return () => {};
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    [user?.email]
-  );
 
   return (
     <main className="max-h-[calc(100%-56px)] overflow-hidden h-full box-content">
@@ -325,7 +149,9 @@ export default function Home() {
                 <div className=" overflow-auto pr-10">
                   <div className="flex flex-col  gap-3 mt-3 pb-8">
                     {messages
-                         ?.sort((a, b) => a.time - b.time)
+                      ?.sort((a, b) => {
+                        return (a.time as number) - (b.time as number);
+                      })
                       .map((chat) => {
                         return (
                           <div
