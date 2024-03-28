@@ -17,20 +17,21 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
-import classNames from "@/utils/classNames";
 
 import Aside from "@/components/Aside/Aside";
 import Header from "@/components/Header/Header";
 import Modal from "@/components/Modal/Modal";
 import Input from "@/components/Input/Input";
 import useCreateChatName from "./hooks/useCreateChatName";
-import Avatar from "react-avatar";
 import SignIn from "@/components/SignIn/SignIn";
 import useHandleSelectPrivateChat from "./hooks/useHandleSelectPrivateChat";
 import useHandleCreateChat from "./hooks/useHandleCreateChat";
 import useGetUsers from "./hooks/useGetUsers";
 import useGetChats from "./hooks/useGetChats";
 import useGetMessage from "./hooks/useGetMessage";
+import ModalIsOpenLinkForChanel from "@/components/Modal/ModalIsOpenLinkForChanel";
+import TextAreaMessage from "@/components/TextAreaMessage.tsx/TextAreaMessage";
+import ChatBox from "@/components/ChatBox/ChatBox";
 
 export type UserType = {
   id: string;
@@ -146,93 +147,18 @@ export default function Home() {
             <div className=" h-screen w-full">
               <Header headerName={headerName} />
               <div className="pl-10  flex flex-col justify-between h-[calc(100%-56px)]">
-                <div className=" overflow-auto pr-10">
-                  <div className="flex flex-col  gap-3 mt-3 pb-8">
-                    {messages
-                      ?.sort((a, b) => {
-                        return (a.time as number) - (b.time as number);
-                      })
-                      .map((chat) => {
-                        return (
-                          <div
-                            className={classNames(
-                              chat.email === user.email ? "justify-start" : "justify-end",
-                              "flex min-h-12 items-end gap-2"
-                            )}
-                          >
-                            <div>
-                              <Avatar
-                                name={chat.email === user.email ? chat.sender : chat.receiverName}
-                                size="40"
-                                round={true}
-                              />
-                            </div>
-                            <div className={"text-black min-h-12 rounded-lg px-3 py-1 bg-white"}>
-                              <div className="text-base font-bold">
-                                {chat.email === user.email ? chat.sender : chat.receiverName}
-                              </div>
-                              <div key={chat.id}>{chat.message}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    <div ref={lastMessageDiv} />
-                  </div>
-                </div>
+                <ChatBox messages={messages} user={user} ref={lastMessageDiv} />
                 {(selectedChatPrivateId.length || selectedChatId) && (
-                  <div className="flex justify-between gap-4 pr-10">
-                    <div className="relative w-full">
-                      <textarea
-                        placeholder="Message"
-                        className={classNames(
-                          "pr-4 py-2 pl-5 pt-3 font-roboto bg-white w-full rounded-md text-base outline-none placeholder:text-custom-gray-200 border border-custom-gray-100 h-[54px]"
-                        )}
-                        value={textareaText}
-                        onChange={(e) => setTextareaText(e.target.value)}
-                      />{" "}
-                    </div>
-                    <button
-                      className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] min-w-[54px] rounded-full text-2xl text-white justify-end items-center"
-                      onClick={(e) => {
-                        e.preventDefault();
-
-                        if (selectedChatId) {
-                          addDoc(collection(db, "messages"), {
-                            email: user.email,
-                            chat_id: selectedChatId,
-                            isRead: [user.email],
-                            message: textareaText,
-                            sender: user.displayName,
-                            time: serverTimestamp(),
-                            receiverName: headerName,
-                            receiverEmail: emailReceiver
-                          })
-                            .then(() => {
-                              setTextareaText("");
-                            })
-                            .catch((err) => alert(err.message));
-                        } else if (selectedChatPrivateId) {
-                          debugger;
-                          addDoc(collection(db, "message_privates"), {
-                            email: user.email,
-                            chat_id: selectedChatPrivateId[0],
-                            isRead: [user.email],
-                            message: textareaText,
-                            sender: user.displayName,
-                            time: serverTimestamp(),
-                            receiverEmail: emailReceiver
-                          })
-                            .then(() => {
-                              setTextareaText("");
-                            })
-                            .catch((err) => alert(err.message));
-                        }
-                        scrollToBottom();
-                      }}
-                    >
-                      ▶
-                    </button>
-                  </div>
+                  <TextAreaMessage
+                    scrollToBottom={scrollToBottom}
+                    textareaText={textareaText}
+                    setTextareaText={setTextareaText}
+                    selectedChatId={selectedChatId}
+                    emailReceiver={emailReceiver}
+                    headerName={headerName}
+                    user={user}
+                    selectedChatPrivateId={selectedChatPrivateId}
+                  />
                 )}
               </div>
             </div>
@@ -267,27 +193,11 @@ export default function Home() {
         </>
       </Modal>
 
-      <Modal open={isOpenLinkForChanel} setOpen={() => setIsOpenLinkForChanel((prev) => !prev)}>
-        <>
-          <div className="text-black">Link</div>
-          <div className="text-black font-bold">
-            {process.env.NEXT_PUBLIC_URL_SITE}
-            {"/"}
-            {linkForChanel}
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] px-6  rounded-md text-2xl text-white justify-end items-center"
-              onClick={() => {
-                setIsOpenLinkForChanel((prev) => !prev);
-              }}
-            >
-              Close
-            </button>{" "}
-          </div>
-        </>
-      </Modal>
+      <ModalIsOpenLinkForChanel
+        setIsOpenLinkForChanel={setIsOpenLinkForChanel}
+        isOpenLinkForChanel={isOpenLinkForChanel}
+        linkForChanel={linkForChanel}
+      />
     </main>
   );
 }
