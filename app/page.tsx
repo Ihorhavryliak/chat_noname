@@ -1,6 +1,6 @@
 "use client";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { auth, db, googleAuthProvider } from "@/firebase/firebase";
 import { onAuthStateChanged, signInWithPopup } from "firebase/auth";
 import {
@@ -198,12 +198,15 @@ export default function Home() {
     if (lastMessageDiv && lastMessageDiv.current) {
       const currentElement = lastMessageDiv.current as HTMLElement;
       currentElement.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+       // behavior: "smooth",
+       // block: "start"
       });
     }
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
   const handleSelectPrivateChat = useCallback(
     async (receiverEmail: string) => {
       try {
@@ -280,6 +283,7 @@ export default function Home() {
           <div className="flex">
             <Aside
               handleSelectPrivatesChat={(email, name) => {
+                scrollToBottom();
                 setSetHeaderName(name);
                 setSelectedChatPrivateId("");
                 setMessages([]);
@@ -288,6 +292,7 @@ export default function Home() {
               }}
               onSelectChat={(id, name) => {
                 if (id !== selectedChatId) {
+                  scrollToBottom();
                   setSetHeaderName(name);
                   setSelectedChatPrivateId("");
                   setMessages([]);
@@ -301,36 +306,36 @@ export default function Home() {
             />
             <div className=" h-screen w-full">
               <Header setHeaderName={setHeaderName} />
-              <div className="px-10 flex flex-col justify-between h-[calc(100%-56px)]">
-                <div className="">
-                  <div className="flex flex-col  gap-3 mt-3">
+              <div className="pl-10  flex flex-col justify-between h-[calc(100%-56px)]">
+                <div className=" overflow-auto pr-10">
+                  <div className="flex flex-col  gap-3 mt-3 pb-8">
                     {messages
-                      /* ?.sort((a, b) => a.time - b.time) */
-                      .map((chat) => { 
+                      ?.sort((a, b) => a.time - b.time)
+                      .map((chat) => {
                         debugger;
                         return (
-                          <div className={
-                            classNames(
+                          <div
+                            className={classNames(
                               chat.email === user.email || chat.receiverEmail === user.email
                                 ? "justify-start"
                                 : "justify-end",
-                                "flex min-h-12 items-center gap-2"
-                            )
-
-                          }>
+                              "flex min-h-12 items-center gap-2"
+                            )}
+                          >
                             <div>
                               <Avatar name={chat.id} size="40" round={true} />
                             </div>
                             <div key={chat.id} className={"text-black bg-white min-h-12 rounded-md p-3"}>
-                              {chat.message} {chat.email}
+                              {chat.message}
                             </div>
                           </div>
                         );
                       })}
+                    <div ref={lastMessageDiv} />
                   </div>
                 </div>
                 {(selectedChatPrivateId || selectedChatId) && (
-                  <div className="flex justify-between gap-4" ref={lastMessageDiv}>
+                  <div className="flex justify-between gap-4 pr-10">
                     <div className="relative w-full">
                       <textarea
                         placeholder="Message"
