@@ -32,6 +32,7 @@ import useGetMessage from "./hooks/useGetMessage";
 import ModalIsOpenLinkForChanel from "@/components/Modal/ModalIsOpenLinkForChanel";
 import TextAreaMessage from "@/components/TextAreaMessage.tsx/TextAreaMessage";
 import ChatBox from "@/components/ChatBox/ChatBox";
+import Loader from "@/components/Loader/Loader";
 
 export type UserType = {
   id: string;
@@ -64,7 +65,7 @@ export type MessageType = {
 };
 
 export default function Home() {
-  const [user] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
   const [users, setUsers] = useState([] as UserType[]);
   const [chats, setChats] = useState([] as ChatType[]);
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -114,6 +115,9 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
+  if (loading) {
+    return <Loader loading={loading} />;
+  }
   return (
     <main className="max-h-[calc(100%-56px)] overflow-hidden h-full box-content">
       <div>
