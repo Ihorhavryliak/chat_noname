@@ -50,7 +50,7 @@ const useHandleCreateChat = ({
     return () => {
       listener();
     };
-  }, [auth]);
+  }, [ setSelectedChatId]);
   const handleCreateChat = useCallback(
     async (chatName: string) => {
       try {
@@ -72,7 +72,7 @@ const useHandleCreateChat = ({
         console.log(error);
       }
     },
-    [user, textareaText]
+    [user, textareaText,  setIsOpenLinkForChanel, setLinkForChanel, setTextareaText]
   );
 
   return { handleCreateChat };

@@ -22,7 +22,7 @@ const useGetUsers = ({ user, setUsers }: useGetUsersType) => {
         );
       });
     }
-  }, [user]);
+  }, [user, setUsers]);
 };
 
 export default useGetUsers;

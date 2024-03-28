@@ -12,7 +12,7 @@ const ChatLink = ({ params }: ParamsType) => {
   useEffect(() => {
     sessionStorage.setItem("chatId", chatId);
     redirect(`/`);
-  }, []); 
+  }, [chatId]); 
 
   return null; 
 };

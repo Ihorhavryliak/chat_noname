@@ -42,6 +42,7 @@ const Aside = ({ onClick, chats, users, userEmail, onSelectChat, handleSelectPri
           if (user.email !== userEmail) {
             return (
               <div
+              key={user.id}
                 onClick={() => {
                   handleSelectPrivatesChat(user.email, user.firstName);
                 }}

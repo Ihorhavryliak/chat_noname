@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction, useEffect } from "react";
 import { MessageType } from "../page";
 
 type UseGetMessageType = {
-  selectedChatId:  string
+  selectedChatId: string;
   setMessages: Dispatch<SetStateAction<MessageType[]>>;
   headerName: string;
   setSelectedChatPrivateId: Dispatch<SetStateAction<string[]>>;
@@ -28,7 +28,7 @@ const useGetMessage = ({ selectedChatId, setMessages, headerName, setSelectedCha
       });
       setSelectedChatPrivateId([]);
     }
-  }, [selectedChatId, headerName]);
+  }, [selectedChatId, headerName, setMessages, setSelectedChatPrivateId]);
 };
 
 export default useGetMessage;

@@ -23,6 +23,7 @@ const ChatBox = ({ messages, user, ref }: ChatBoxType) => {
           .map((chat) => {
             return (
               <div
+                key={chat.id}
                 className={classNames(
                   chat.email === user?.email ? "justify-start" : "justify-end",
                   "flex min-h-12 items-end gap-2"

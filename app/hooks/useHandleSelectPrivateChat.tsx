@@ -12,7 +12,7 @@ type UseHandleSelectPrivateChatType = {
   headerName: string;
   setEmailReceiver: (val: string) => void;
   user: User | null | undefined;
-  setSelectedChatPrivateId:  Dispatch<SetStateAction<string[]>>
+  setSelectedChatPrivateId: Dispatch<SetStateAction<string[]>>;
 };
 
 const useHandleSelectPrivateChat = ({
@@ -45,7 +45,7 @@ const useHandleSelectPrivateChat = ({
         }
       );
     }
-  }, [selectedChatPrivateId, headerName]);
+  }, [selectedChatPrivateId, headerName, setMessages]);
   const handleSelectPrivateChat = useCallback(
     async (receiverEmail: string) => {
       try {
@@ -117,10 +117,10 @@ const useHandleSelectPrivateChat = ({
         console.log(error);
       }
     },
-    [user?.email]
+    [user?.email, setEmailReceiver, setSelectedChatPrivateId, textareaText, setTextareaText, user?.displayName]
   );
 
-  return {handleSelectPrivateChat};
+  return { handleSelectPrivateChat };
 };
 
 export default useHandleSelectPrivateChat;

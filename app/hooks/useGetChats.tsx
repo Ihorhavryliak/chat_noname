@@ -27,7 +27,7 @@ const useGetChats = ({ user, setChats, headerName }: UseGetChatsType) => {
         );
       });
     }
-  }, [user?.email]);
+  }, [user?.email, headerName, setChats]);
   return <div>useGetChats</div>;
 };
 
