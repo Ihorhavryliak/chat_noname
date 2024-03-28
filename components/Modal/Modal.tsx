@@ -36,6 +36,7 @@ const Modal = ({ open, setOpen, children }: ModalType) => {
             <Dialog.Panel className="relative overflow-hidden  bg-white text-left shadow-xl sm:my-8  max-w-[1200px] w-full rounded-xl border border-white pt-4 px-6 pb-6 font-roboto shadow-variant-4">
               <div className="flex justify-end pb-4">
                 <button
+                  onClick={() => setOpen()}
                   type="button"
                   className="outline-none text-3xl text-custom-gray-120 hover:text-gray-400 text-gray-800"
                   ref={cancelButtonRef}

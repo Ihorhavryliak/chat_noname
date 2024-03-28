@@ -1,10 +1,11 @@
 "use client";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { auth, db, googleAuthProvider } from "@/firebase/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup } from "firebase/auth";
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDocs,
@@ -12,18 +13,23 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where
 } from "firebase/firestore";
 import classNames from "@/utils/classNames";
 import { v4 as uuidv4 } from "uuid";
 import Aside from "@/components/Aside/Aside";
 import Header from "@/components/Header/Header";
+import Modal from "@/components/Modal/Modal";
+import Input from "@/components/Input/Input";
+import useCreateChatName from "./hooks/useCreateChatName";
 export type UserType = {
   id: string;
   email: string;
   firstName: string;
   lastName?: string;
   password?: string;
+  lastMessage?: string;
 };
 export type ChatType = {
   id: string;
@@ -32,6 +38,7 @@ export type ChatType = {
   message: string;
   sender: string;
   time: string;
+  chatName: string;
 };
 export type MessageType = {
   id: string;
@@ -46,6 +53,7 @@ export type MessageType = {
 
 export default function Home() {
   const [user] = useAuthState(auth);
+  console.log(user, "user.>>");
   const [users, setUsers] = useState([] as UserType[]);
   const [chats, setChats] = useState([] as ChatType[]);
   const [selectedChatId, setSelectedChatId] = useState("");
@@ -53,12 +61,70 @@ export default function Home() {
   const [messages, setMessages] = useState([] as MessageType[]);
   const lastMessageDiv = useRef(null);
   const [textareaText, setTextareaText] = useState("");
-  const [isNotChat, setIsNotChat] = useState({ isGetChat: false, isGetChatReceiver: false });
   const [emailReceiver, setEmailReceiver] = useState("");
+  const [open, setOpen] = useState(false);
+  const [linkForChanel, setLinkForChanel] = useState("");
+  const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
 
-  console.log(selectedChatId);
-  console.log(selectedChatPrivateId);
+  useEffect(() => {
+    const listener = onAuthStateChanged(auth, async (user) => {
+      if (user?.email) {
+        const chatId = sessionStorage.getItem("chatId");
+        if (chatId) {
+          const fetch = async () => {
+            const q = query(collection(db, "chats"), where("id", "==", chatId));
+            const users = await getDocs(q).then((snapshot) => {
+              const users = snapshot.docs.map((doc) => ({
+                data: doc.data()
+              }));
+              return users[0]?.data?.users;
+            });
+            debugger;
+            if (users && user?.email && !users.includes(user?.email)) {
+              const newUsers = [...users, user?.email];
+              const response = await updateDoc(doc(db, "chats", chatId), { users: newUsers });
+              debugger;
+            } else {
+              console.error("Document does not exist");
+            }
+          };
+          fetch();
+          setSelectedChatId(chatId);
+          sessionStorage.removeItem("chatId");
+        }
+      }
+    });
+    return () => {
+      listener();
+    };
+  }, [auth]);
 
+  const handleCreateChat = useCallback(
+    (chatName: string) => {
+      try {
+        const idChanel = uuidv4();
+        addDoc(collection(db, `chats`), {
+          id: idChanel,
+          chatName: chatName,
+          email: user?.email,
+          lastMessage: textareaText,
+          sender: user?.displayName,
+          time: serverTimestamp(),
+          isRead: false,
+          users: [user?.email]
+        }).then(() => {
+          setIsOpenLinkForChanel(true);
+          setTextareaText("");
+          setLinkForChanel(idChanel);
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    [user, textareaText]
+  );
+
+  const { dataInput, error, handleSubmit, onSubmit, register, watch } = useCreateChatName({ handleCreateChat });
   useEffect(() => {
     if (user?.email) {
       onSnapshot(query(collection(db, "chats"), where("email", "==", user.email)), (snapshot) => {
@@ -69,7 +135,8 @@ export default function Home() {
             isRead: doc.data().isRead,
             message: doc.data().message,
             sender: doc.data().sender,
-            time: doc.data().time
+            time: doc.data().time,
+            chatName: doc.data().chatName
           }))
         );
       });
@@ -92,7 +159,7 @@ export default function Home() {
   }, [user]);
   useEffect(() => {
     if (selectedChatId.length > 0) {
-      onSnapshot(query(collection(db, "messages"), where("chat_id", "==", selectedChatId), orderBy('time')), (snapshot) => {
+      onSnapshot(query(collection(db, "messages"), where("chat_id", "==", selectedChatId)), (snapshot) => {
         setMessages(
           snapshot.docs.map((doc) => ({
             chat_id: doc.data().chat_id,
@@ -112,7 +179,6 @@ export default function Home() {
       onSnapshot(
         query(collection(db, "message_privates"), where("chat_id", "==", selectedChatPrivateId)),
         (snapshot) => {
-        
           setMessages(
             snapshot.docs.map((doc) => ({
               chat_id: doc.data().chat_id,
@@ -122,7 +188,7 @@ export default function Home() {
               sender: doc.data().sender,
               time: doc.data().time,
               email: doc.data().email
-            })).sort((a, b)=> a.time - b.time)
+            }))
           );
         }
       );
@@ -138,21 +204,6 @@ export default function Home() {
       });
     }
   };
-
-  const handleCreateChat = useCallback(() => {
-    try {
-      addDoc(collection(db, `chats`), {
-        id: uuidv4(),
-        email: user?.email,
-        lastMessage: textareaText,
-        sender: user?.displayName,
-        time: serverTimestamp(),
-        isRead: false
-      }).then(() => setTextareaText(""));
-    } catch (error) {
-      console.log(error);
-    }
-  }, [user, textareaText]);
 
   const handleSelectPrivateChat = useCallback(
     async (receiverEmail: string) => {
@@ -192,7 +243,7 @@ export default function Home() {
           .catch((error) => {
             console.error("Error getting documents: ", error);
           });
-       
+
         if (response && response.length) {
           setSelectedChatPrivateId(response[0]?.id);
         } else if (responseAnother && responseAnother) {
@@ -221,14 +272,8 @@ export default function Home() {
         console.log(error);
       }
     },
-    [user?.email, setIsNotChat]
+    [user?.email]
   );
-
-  useEffect(() => {
-    return () => {
-      setIsNotChat({ isGetChat: false, isGetChatReceiver: false });
-    };
-  }, []);
 
   return (
     <main>
@@ -244,33 +289,39 @@ export default function Home() {
                 setSelectedChatId("");
                 handleSelectPrivateChat(email);
               }}
-              onSelectChat={(id) => setSelectedChatId(id)}
+              onSelectChat={(id) => {
+                setSelectedChatPrivateId("");
+                setMessages([]);
+                setSelectedChatId(id);
+              }}
               chats={chats}
               users={users}
               userEmail={user.email || ""}
-              onClick={() => handleCreateChat()}
+              onClick={() => setOpen((prev) => !prev)}
             />
             <div className="bg-gray-800 h-screen w-full p-6">
               <Header />
               <div className="flex flex-col justify-between h-[calc(100%-26px)]">
                 <div className="bg-gray-500">
                   <div>
-                    {messages.map((chat) => {
-                      debugger;
-                      return (
-                        <div
-                          key={chat.id}
-                          className={classNames(
-                            chat.email === user.email || chat.receiverEmail === user.email
-                              ? ""
-                              : "text-end text-red-900",
-                            "text-red-300"
-                          )}
-                        >
-                          {chat.message} {chat.email}
-                        </div>
-                      );
-                    })}
+                    {messages
+                      /* ?.sort((a, b) => a.time - b.time) */
+                      .map((chat) => {
+                        debugger;
+                        return (
+                          <div
+                            key={chat.id}
+                            className={classNames(
+                              chat.email === user.email || chat.receiverEmail === user.email
+                                ? ""
+                                : "text-end text-red-900",
+                              "text-red-300"
+                            )}
+                          >
+                            {chat.message} {chat.email}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
                 <div className="flex justify-between" ref={lastMessageDiv}>
@@ -323,6 +374,50 @@ export default function Home() {
           </div>
         )}
       </div>
+      <Modal open={open} setOpen={() => setOpen((prev) => !prev)}>
+        <>
+          {dataInput.map((input, index) => (
+            <Fragment key={`${index}chatNameKey`}>
+              <Input
+                value={watch(input.name as "chatName")}
+                label={input.label}
+                type={input.type}
+                item={input}
+                register={register(input.name as "chatName")}
+                error={error[input.name]?.message}
+              />
+            </Fragment>
+          ))}
+          <button
+            onClick={() => {
+              handleSubmit(onSubmit)();
+              setOpen((prev) => !prev);
+            }}
+            className="text-black"
+          >
+            send
+          </button>
+        </>
+      </Modal>
+
+      <Modal open={isOpenLinkForChanel} setOpen={() => setIsOpenLinkForChanel((prev) => !prev)}>
+        <>
+          <div className="text-black">Link</div>
+          <div className="text-black">
+            {" "}
+            {"/"}
+            {linkForChanel}
+          </div>
+          <button
+            onClick={() => {
+              setIsOpenLinkForChanel((prev) => !prev);
+            }}
+            className="text-black"
+          >
+            Close
+          </button>
+        </>
+      </Modal>
     </main>
   );
 }

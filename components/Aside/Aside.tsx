@@ -32,7 +32,7 @@ const Aside = ({
               }}
               className={"text-white"}
             >
-              {chat.sender} - chat name
+              {chat.chatName}
             </div>
           );
         })}
@@ -46,7 +46,10 @@ const Aside = ({
                 }}
                 className={"text-white"}
               >
-                {user.firstName}
+                {user.firstName}  {user.lastName}
+                <div>
+                {user.lastMessage} 
+                </div>
               </div>
             );
           }
