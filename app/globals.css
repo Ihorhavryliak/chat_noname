@@ -6,6 +6,8 @@ body {
   background-image: url("../public/assets/images/Screenshot_1.png");
   background-repeat: no-repeat;
   background-size: cover;
+  box-sizing: border-box;
+  box-sizing: content-box
 }
 
 ::-webkit-scrollbar {

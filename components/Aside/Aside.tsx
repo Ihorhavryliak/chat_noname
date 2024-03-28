@@ -13,14 +13,14 @@ type AsideType = {
 
 const Aside = ({ onClick, chats, users, userEmail, onSelectChat, handleSelectPrivatesChat }: AsideType) => {
   return (
-    <aside className="bg-white max-w-[404px] w-full">
+    <aside className="bg-white max-w-[404px] w-full relative overflow-hidden">
       <button
         onClick={onClick}
         className="bg-gray-300 p-2 rounded-md mx-4 my-4 cursor-pointer hover:bg-gray-400 hover:text-white"
       >
         |||
       </button>
-      <div className="flex flex-col mt-14 p-4">
+      <div className="p-4 overflow-scroll max-h-[calc(100vh-72px)] h-full">
         {chats.map((chat) => {
           return (
             <div

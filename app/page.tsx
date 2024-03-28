@@ -1,8 +1,8 @@
 "use client";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { auth, db, googleAuthProvider } from "@/firebase/firebase";
-import { onAuthStateChanged, signInWithPopup } from "firebase/auth";
+import { auth, db } from "@/firebase/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   addDoc,
   arrayUnion,
@@ -25,6 +25,8 @@ import Modal from "@/components/Modal/Modal";
 import Input from "@/components/Input/Input";
 import useCreateChatName from "./hooks/useCreateChatName";
 import Avatar from "react-avatar";
+import SignIn from "@/components/SignIn/SignIn";
+
 export type UserType = {
   id: string;
   email: string;
@@ -41,6 +43,7 @@ export type ChatType = {
   sender: string;
   time: string;
   chatName: string;
+  receiverName: string;
 };
 export type MessageType = {
   id: string;
@@ -51,6 +54,7 @@ export type MessageType = {
   receiverEmail?: string;
   receiver?: string;
   email?: string;
+  receiverName: string;
 };
 
 export default function Home() {
@@ -58,7 +62,7 @@ export default function Home() {
   const [users, setUsers] = useState([] as UserType[]);
   const [chats, setChats] = useState([] as ChatType[]);
   const [selectedChatId, setSelectedChatId] = useState("");
-  const [selectedChatPrivateId, setSelectedChatPrivateId] = useState("");
+  const [selectedChatPrivateId, setSelectedChatPrivateId] = useState([] as string[]);
   const [messages, setMessages] = useState([] as MessageType[]);
   const lastMessageDiv = useRef(null);
   const [textareaText, setTextareaText] = useState("");
@@ -66,7 +70,8 @@ export default function Home() {
   const [open, setOpen] = useState(false);
   const [linkForChanel, setLinkForChanel] = useState("");
   const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
-  const [setHeaderName, setSetHeaderName] = useState("");
+  const [headerName, setSetHeaderName] = useState("");
+  console.log(messages, "messages");
   useEffect(() => {
     const listener = onAuthStateChanged(auth, async (user) => {
       if (user?.email) {
@@ -134,7 +139,8 @@ export default function Home() {
             message: doc.data().message,
             sender: doc.data().sender,
             time: doc.data().time,
-            chatName: doc.data().chatName
+            chatName: doc.data().chatName,
+            receiverName: headerName
           }))
         );
       });
@@ -166,17 +172,18 @@ export default function Home() {
             message: doc.data().message,
             sender: doc.data().sender,
             time: doc.data().time,
-            email: doc.data().email
+            email: doc.data().email,
+            receiverName: headerName
           }))
         );
       });
       setSelectedChatPrivateId("");
     }
-  }, [selectedChatId]);
+  }, [selectedChatId, headerName]);
   useEffect(() => {
     if (selectedChatPrivateId?.length > 0) {
       onSnapshot(
-        query(collection(db, "message_privates"), where("chat_id", "==", selectedChatPrivateId)),
+        query(collection(db, "message_privates"), where("chat_id", "==", selectedChatPrivateId[0])),
         (snapshot) => {
           setMessages(
             snapshot.docs.map((doc) => ({
@@ -186,20 +193,21 @@ export default function Home() {
               message: doc.data().message,
               sender: doc.data().sender,
               time: doc.data().time,
-              email: doc.data().email
+              email: doc.data().email,
+              receiverName: headerName
             }))
           );
         }
       );
     }
-  }, [selectedChatPrivateId]);
+  }, [selectedChatPrivateId, headerName]);
 
   const scrollToBottom = () => {
     if (lastMessageDiv && lastMessageDiv.current) {
       const currentElement = lastMessageDiv.current as HTMLElement;
       currentElement.scrollIntoView({
-       // behavior: "smooth",
-       // block: "start"
+        // behavior: "smooth",
+        // block: "start"
       });
     }
   };
@@ -247,11 +255,16 @@ export default function Home() {
           });
 
         if (response && response.length) {
-          setSelectedChatPrivateId(response[0]?.id);
+          setSelectedChatPrivateId((prev) => {
+            return [...prev, response[0]?.id];
+          });
         } else if (responseAnother && responseAnother.length) {
-          setSelectedChatPrivateId(responseAnother[0]?.id);
+          setSelectedChatPrivateId((prev) => {
+            return [...prev, responseAnother[0]?.id];
+          });
         } else {
           try {
+            debugger;
             const responseRef = await addDoc(collection(db, `chat_privates`), {
               email: user?.email,
               receiverEmail: receiverEmail,
@@ -260,7 +273,9 @@ export default function Home() {
               time: serverTimestamp(),
               isRead: false
             });
-            setSelectedChatPrivateId(responseRef?.id);
+            setSelectedChatPrivateId((prev) => {
+              return [...prev, responseRef?.id];
+            });
             setTextareaText("");
           } catch (error) {
             alert(error);
@@ -275,7 +290,7 @@ export default function Home() {
   );
 
   return (
-    <main>
+    <main className="max-h-[calc(100%-56px)] overflow-hidden h-full box-content">
       <div>
         {!user ? (
           <SignIn />
@@ -285,7 +300,7 @@ export default function Home() {
               handleSelectPrivatesChat={(email, name) => {
                 scrollToBottom();
                 setSetHeaderName(name);
-                setSelectedChatPrivateId("");
+                setSelectedChatPrivateId([]);
                 setMessages([]);
                 setSelectedChatId("");
                 handleSelectPrivateChat(email);
@@ -294,7 +309,7 @@ export default function Home() {
                 if (id !== selectedChatId) {
                   scrollToBottom();
                   setSetHeaderName(name);
-                  setSelectedChatPrivateId("");
+                  setSelectedChatPrivateId([]);
                   setMessages([]);
                   setSelectedChatId(id);
                 }
@@ -305,28 +320,32 @@ export default function Home() {
               onClick={() => setOpen((prev) => !prev)}
             />
             <div className=" h-screen w-full">
-              <Header setHeaderName={setHeaderName} />
+              <Header headerName={headerName} />
               <div className="pl-10  flex flex-col justify-between h-[calc(100%-56px)]">
                 <div className=" overflow-auto pr-10">
                   <div className="flex flex-col  gap-3 mt-3 pb-8">
                     {messages
-                      ?.sort((a, b) => a.time - b.time)
+                         ?.sort((a, b) => a.time - b.time)
                       .map((chat) => {
-                        debugger;
                         return (
                           <div
                             className={classNames(
-                              chat.email === user.email || chat.receiverEmail === user.email
-                                ? "justify-start"
-                                : "justify-end",
-                              "flex min-h-12 items-center gap-2"
+                              chat.email === user.email ? "justify-start" : "justify-end",
+                              "flex min-h-12 items-end gap-2"
                             )}
                           >
                             <div>
-                              <Avatar name={chat.id} size="40" round={true} />
+                              <Avatar
+                                name={chat.email === user.email ? chat.sender : chat.receiverName}
+                                size="40"
+                                round={true}
+                              />
                             </div>
-                            <div key={chat.id} className={"text-black bg-white min-h-12 rounded-md p-3"}>
-                              {chat.message}
+                            <div className={"text-black min-h-12 rounded-lg px-3 py-1 bg-white"}>
+                              <div className="text-base font-bold">
+                                {chat.email === user.email ? chat.sender : chat.receiverName}
+                              </div>
+                              <div key={chat.id}>{chat.message}</div>
                             </div>
                           </div>
                         );
@@ -334,7 +353,7 @@ export default function Home() {
                     <div ref={lastMessageDiv} />
                   </div>
                 </div>
-                {(selectedChatPrivateId || selectedChatId) && (
+                {(selectedChatPrivateId.length || selectedChatId) && (
                   <div className="flex justify-between gap-4 pr-10">
                     <div className="relative w-full">
                       <textarea
@@ -350,6 +369,7 @@ export default function Home() {
                       className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] min-w-[54px] rounded-full text-2xl text-white justify-end items-center"
                       onClick={(e) => {
                         e.preventDefault();
+
                         if (selectedChatId) {
                           addDoc(collection(db, "messages"), {
                             email: user.email,
@@ -357,20 +377,24 @@ export default function Home() {
                             isRead: [user.email],
                             message: textareaText,
                             sender: user.displayName,
-                            time: serverTimestamp()
+                            time: serverTimestamp(),
+                            receiverName: headerName,
+                            receiverEmail: emailReceiver
                           })
                             .then(() => {
                               setTextareaText("");
                             })
                             .catch((err) => alert(err.message));
                         } else if (selectedChatPrivateId) {
+                          debugger;
                           addDoc(collection(db, "message_privates"), {
                             email: user.email,
-                            chat_id: selectedChatPrivateId,
+                            chat_id: selectedChatPrivateId[0],
                             isRead: [user.email],
                             message: textareaText,
                             sender: user.displayName,
-                            time: serverTimestamp()
+                            time: serverTimestamp(),
+                            receiverEmail: emailReceiver
                           })
                             .then(() => {
                               setTextareaText("");
@@ -439,34 +463,5 @@ export default function Home() {
         </>
       </Modal>
     </main>
-  );
-}
-
-async function SignIn() {
-  const signInWithGoogle = async () => {
-    try {
-      const res = await signInWithPopup(auth, googleAuthProvider);
-      const isEmail = onSnapshot(
-        query(collection(db, "users"), where("email", "==", res.user.email)),
-        (snapshot) => snapshot
-      );
-      if (!isEmail?.length) {
-        await addDoc(collection(db, `users`), {
-          email: res.user.email,
-          firstName: res.user.displayName
-        }).catch((err) => alert(err.message));
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  return (
-    <>
-      <button className="sign-in" onClick={signInWithGoogle}>
-        Sign in with Google
-      </button>
-      <p>Do not violate the community guidelines or you will be banned for life!</p>
-    </>
   );
 }
