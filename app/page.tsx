@@ -18,7 +18,7 @@ import {
   where
 } from "firebase/firestore";
 import classNames from "@/utils/classNames";
-import { v4 as uuidv4 } from "uuid";
+
 import Aside from "@/components/Aside/Aside";
 import Header from "@/components/Header/Header";
 import Modal from "@/components/Modal/Modal";
@@ -65,7 +65,10 @@ export default function Home() {
   const [open, setOpen] = useState(false);
   const [linkForChanel, setLinkForChanel] = useState("");
   const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
- 
+
+  console.log(messages, "messages>>");
+  console.log(selectedChatId, "selectedChatId>>");
+  console.log(selectedChatPrivateId, "selectedChatPrivateId>>");
   useEffect(() => {
     const listener = onAuthStateChanged(auth, async (user) => {
       if (user?.email) {
@@ -82,7 +85,7 @@ export default function Home() {
 
             if (user?.email && !userEmail?.includes(email) && user?.email) {
               const newUsers = arrayUnion(...[...userEmail, user?.email]);
-              const response = await updateDoc(doc(db, "chats", chatId), {
+              await updateDoc(doc(db, "chats", chatId), {
                 users: newUsers
               });
             }
@@ -97,13 +100,10 @@ export default function Home() {
       listener();
     };
   }, [auth]);
-
   const handleCreateChat = useCallback(
-    (chatName: string) => {
+    async (chatName: string) => {
       try {
-        const idChanel = uuidv4();
-        addDoc(collection(db, `chats`), {
-          id: idChanel,
+        const docRef = await addDoc(collection(db, "chats"), {
           chatName: chatName,
           email: user?.email,
           lastMessage: textareaText,
@@ -111,11 +111,12 @@ export default function Home() {
           time: serverTimestamp(),
           isRead: false,
           users: [user?.email]
-        }).then(() => {
+        });
+        if (docRef) {
           setIsOpenLinkForChanel(true);
           setTextareaText("");
-          setLinkForChanel(idChanel);
-        });
+          setLinkForChanel(docRef.id);
+        }
       } catch (error) {
         console.log(error);
       }
@@ -126,7 +127,7 @@ export default function Home() {
   const { dataInput, error, handleSubmit, onSubmit, register, watch } = useCreateChatName({ handleCreateChat });
   useEffect(() => {
     if (user?.email) {
-      onSnapshot(query(collection(db, "chats"), where("users", "array-contains", user.email)), (snapshot) => {
+      onSnapshot(query(collection(db, "chats"), where("users", "array-contains-any", [user.email])), (snapshot) => {
         setChats(
           snapshot.docs.map((doc) => ({
             id: doc.id,
@@ -162,7 +163,7 @@ export default function Home() {
         setMessages(
           snapshot.docs.map((doc) => ({
             chat_id: doc.data().chat_id,
-            id: doc.data().id,
+            id: doc.id,
             isRead: doc.data().isRead,
             message: doc.data().message,
             sender: doc.data().sender,
@@ -171,17 +172,18 @@ export default function Home() {
           }))
         );
       });
+      setSelectedChatPrivateId("");
     }
   }, [selectedChatId]);
   useEffect(() => {
-    if (selectedChatPrivateId.length > 0) {
+    if (selectedChatPrivateId?.length > 0) {
       onSnapshot(
         query(collection(db, "message_privates"), where("chat_id", "==", selectedChatPrivateId)),
         (snapshot) => {
           setMessages(
             snapshot.docs.map((doc) => ({
               chat_id: doc.data().chat_id,
-              id: doc.data().id,
+              id: doc.id,
               isRead: doc.data().isRead,
               message: doc.data().message,
               sender: doc.data().sender,
@@ -242,26 +244,25 @@ export default function Home() {
           .catch((error) => {
             console.error("Error getting documents: ", error);
           });
-
+        debugger;
         if (response && response.length) {
           setSelectedChatPrivateId(response[0]?.id);
-        } else if (responseAnother && responseAnother) {
+        } else if (responseAnother && responseAnother.length) {
           setSelectedChatPrivateId(responseAnother[0]?.id);
         } else {
           try {
-            const chatId = uuidv4();
-            addDoc(collection(db, `chat_privates`), {
-              id: chatId,
+            debugger;
+            const responseRef = await addDoc(collection(db, `chat_privates`), {
               email: user?.email,
               receiverEmail: emailReceiver,
               lastMessage: textareaText,
               sender: user?.displayName,
               time: serverTimestamp(),
               isRead: false
-            }).then(() => {
-              setSelectedChatPrivateId(chatId);
-              setTextareaText("");
             });
+            debugger;
+            setSelectedChatPrivateId(responseRef?.id);
+            setTextareaText("");
           } catch (error) {
             alert(error);
           }
@@ -289,9 +290,11 @@ export default function Home() {
                 handleSelectPrivateChat(email);
               }}
               onSelectChat={(id) => {
-                setSelectedChatPrivateId("");
-                setMessages([]);
-                setSelectedChatId(id);
+                if (id !== selectedChatId) {
+                  setSelectedChatPrivateId("");
+                  setMessages([]);
+                  setSelectedChatId(id);
+                }
               }}
               chats={chats}
               users={users}
@@ -323,50 +326,50 @@ export default function Home() {
                       })}
                   </div>
                 </div>
-                <div className="flex justify-between" ref={lastMessageDiv}>
-                  <textarea
-                    className="text-black border"
-                    value={textareaText}
-                    onChange={(e) => setTextareaText(e.target.value)}
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (selectedChatId) {
-                        addDoc(collection(db, `messages`), {
-                          email: user.email,
-                          chat_id: selectedChatId,
-
-                          isRead: false,
-                          message: textareaText,
-                          sender: user.displayName,
-                          time: serverTimestamp()
-                        })
-                          .then(() => {
-                            setTextareaText("");
+                {(selectedChatPrivateId || selectedChatId) && (
+                  <div className="flex justify-between" ref={lastMessageDiv}>
+                    <textarea
+                      className="text-black border"
+                      value={textareaText}
+                      onChange={(e) => setTextareaText(e.target.value)}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (selectedChatId) {
+                          addDoc(collection(db, "messages"), {
+                            email: user.email,
+                            chat_id: selectedChatId,
+                            isRead: [user.email],
+                            message: textareaText,
+                            sender: user.displayName,
+                            time: serverTimestamp()
                           })
-                          .catch((err) => alert(err.message));
-                      } else if (selectedChatPrivateId) {
-                        addDoc(collection(db, `message_privates`), {
-                          email: user.email,
-                          chat_id: selectedChatPrivateId,
-
-                          isRead: false,
-                          message: textareaText,
-                          sender: user.displayName,
-                          time: serverTimestamp()
-                        })
-                          .then(() => {
-                            setTextareaText("");
+                            .then(() => {
+                              setTextareaText("");
+                            })
+                            .catch((err) => alert(err.message));
+                        } else if (selectedChatPrivateId) {
+                          addDoc(collection(db, "message_privates"), {
+                            email: user.email,
+                            chat_id: selectedChatPrivateId,
+                            isRead: [user.email],
+                            message: textareaText,
+                            sender: user.displayName,
+                            time: serverTimestamp()
                           })
-                          .catch((err) => alert(err.message));
-                      }
-                      scrollToBottom();
-                    }}
-                  >
-                    Send
-                  </button>
-                </div>
+                            .then(() => {
+                              setTextareaText("");
+                            })
+                            .catch((err) => alert(err.message));
+                        }
+                        scrollToBottom();
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
