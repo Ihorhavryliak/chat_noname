@@ -1,38 +1,40 @@
 import { ChatType, UserType } from "@/app/page";
 import React from "react";
+import Avatar from "react-avatar";
 
 type AsideType = {
   onClick: () => void;
   chats: ChatType[];
   users: UserType[];
   userEmail: string;
-  onSelectChat: (id: string) => void;
-  handleSelectPrivatesChat: (email: string) => void;
+  onSelectChat: (id: string, name: string) => void;
+  handleSelectPrivatesChat: (email: string, name: string) => void;
 };
 
-const Aside = ({
-  onClick,
-  chats,
-  users,
-  userEmail,
-  onSelectChat,
-  handleSelectPrivatesChat,
-
-}: AsideType) => {
+const Aside = ({ onClick, chats, users, userEmail, onSelectChat, handleSelectPrivatesChat }: AsideType) => {
   return (
-    <aside className="bg-blue-900 max-w-80 w-full">
-      <button onClick={onClick}>Creted chat</button>
-      <div>
+    <aside className="bg-white max-w-[404px] w-full">
+      <button
+        onClick={onClick}
+        className="bg-gray-300 p-2 rounded-md mx-4 my-4 cursor-pointer hover:bg-gray-400 hover:text-white"
+      >
+        |||
+      </button>
+      <div className="flex flex-col mt-14 p-4">
         {chats.map((chat) => {
           return (
             <div
-            key={chat.id}
+              key={chat.id}
               onClick={() => {
-                onSelectChat(chat.id);
+                onSelectChat(chat.id, chat.chatName);
               }}
-              className={"text-white"}
+              className="transition-all flex gap-4 items-center cursor-pointer text-black p-2 hover:bg-custom-blue-100 rounded-lg hover:text-white"
             >
-              {chat.chatName}
+              <Avatar name={chat.chatName} size="70" round={true} title="" />
+              <div>
+                <div className="font-medium">{chat.chatName}</div>
+                <div className=" text-base font-medium">some message</div>
+              </div>
             </div>
           );
         })}
@@ -40,15 +42,20 @@ const Aside = ({
           if (user.email !== userEmail) {
             return (
               <div
-              key={user.id}
                 onClick={() => {
-                  handleSelectPrivatesChat(user.email);
+                  handleSelectPrivatesChat(user.email, user.firstName);
                 }}
-                className={"text-white"}
+                className="transition-all flex gap-4 items-center cursor-pointer text-black p-2 hover:bg-custom-blue-100 rounded-lg  hover:text-white"
               >
-                {user.firstName}  {user.lastName}
                 <div>
-                {user.lastMessage} 
+                  <Avatar name={user.firstName} size="70" round={true} />
+                </div>
+
+                <div>
+                  <div className="font-medium">
+                    {user.firstName} {user.lastName}
+                  </div>
+                  <div className=" text-base font-medium">some message</div>
                 </div>
               </div>
             );

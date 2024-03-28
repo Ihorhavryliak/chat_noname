@@ -24,6 +24,7 @@ import Header from "@/components/Header/Header";
 import Modal from "@/components/Modal/Modal";
 import Input from "@/components/Input/Input";
 import useCreateChatName from "./hooks/useCreateChatName";
+import Avatar from "react-avatar";
 export type UserType = {
   id: string;
   email: string;
@@ -65,10 +66,7 @@ export default function Home() {
   const [open, setOpen] = useState(false);
   const [linkForChanel, setLinkForChanel] = useState("");
   const [isOpenLinkForChanel, setIsOpenLinkForChanel] = useState(false);
-
-  console.log(messages, "messages>>");
-  console.log(selectedChatId, "selectedChatId>>");
-  console.log(selectedChatPrivateId, "selectedChatPrivateId>>");
+  const [setHeaderName, setSetHeaderName] = useState("");
   useEffect(() => {
     const listener = onAuthStateChanged(auth, async (user) => {
       if (user?.email) {
@@ -244,23 +242,21 @@ export default function Home() {
           .catch((error) => {
             console.error("Error getting documents: ", error);
           });
-        debugger;
+
         if (response && response.length) {
           setSelectedChatPrivateId(response[0]?.id);
         } else if (responseAnother && responseAnother.length) {
           setSelectedChatPrivateId(responseAnother[0]?.id);
         } else {
           try {
-            debugger;
             const responseRef = await addDoc(collection(db, `chat_privates`), {
               email: user?.email,
-              receiverEmail: emailReceiver,
+              receiverEmail: receiverEmail,
               lastMessage: textareaText,
               sender: user?.displayName,
               time: serverTimestamp(),
               isRead: false
             });
-            debugger;
             setSelectedChatPrivateId(responseRef?.id);
             setTextareaText("");
           } catch (error) {
@@ -281,16 +277,18 @@ export default function Home() {
         {!user ? (
           <SignIn />
         ) : (
-          <div className="flex gap-8">
+          <div className="flex">
             <Aside
-              handleSelectPrivatesChat={(email) => {
+              handleSelectPrivatesChat={(email, name) => {
+                setSetHeaderName(name);
                 setSelectedChatPrivateId("");
                 setMessages([]);
                 setSelectedChatId("");
                 handleSelectPrivateChat(email);
               }}
-              onSelectChat={(id) => {
+              onSelectChat={(id, name) => {
                 if (id !== selectedChatId) {
+                  setSetHeaderName(name);
                   setSelectedChatPrivateId("");
                   setMessages([]);
                   setSelectedChatId(id);
@@ -301,39 +299,50 @@ export default function Home() {
               userEmail={user.email || ""}
               onClick={() => setOpen((prev) => !prev)}
             />
-            <div className="bg-gray-800 h-screen w-full p-6">
-              <Header />
-              <div className="flex flex-col justify-between h-[calc(100%-26px)]">
-                <div className="bg-gray-500">
-                  <div>
+            <div className=" h-screen w-full">
+              <Header setHeaderName={setHeaderName} />
+              <div className="px-10 flex flex-col justify-between h-[calc(100%-56px)]">
+                <div className="">
+                  <div className="flex flex-col  gap-3 mt-3">
                     {messages
                       /* ?.sort((a, b) => a.time - b.time) */
-                      .map((chat) => {
+                      .map((chat) => { 
                         debugger;
                         return (
-                          <div
-                            key={chat.id}
-                            className={classNames(
+                          <div className={
+                            classNames(
                               chat.email === user.email || chat.receiverEmail === user.email
-                                ? ""
-                                : "text-end text-red-900",
-                              "text-red-300"
-                            )}
-                          >
-                            {chat.message} {chat.email}
+                                ? "justify-start"
+                                : "justify-end",
+                                "flex min-h-12 items-center gap-2"
+                            )
+
+                          }>
+                            <div>
+                              <Avatar name={chat.id} size="40" round={true} />
+                            </div>
+                            <div key={chat.id} className={"text-black bg-white min-h-12 rounded-md p-3"}>
+                              {chat.message} {chat.email}
+                            </div>
                           </div>
                         );
                       })}
                   </div>
                 </div>
                 {(selectedChatPrivateId || selectedChatId) && (
-                  <div className="flex justify-between" ref={lastMessageDiv}>
-                    <textarea
-                      className="text-black border"
-                      value={textareaText}
-                      onChange={(e) => setTextareaText(e.target.value)}
-                    />
+                  <div className="flex justify-between gap-4" ref={lastMessageDiv}>
+                    <div className="relative w-full">
+                      <textarea
+                        placeholder="Message"
+                        className={classNames(
+                          "pr-4 py-2 pl-5 pt-3 font-roboto bg-white w-full rounded-md text-base outline-none placeholder:text-custom-gray-200 border border-custom-gray-100 h-[54px]"
+                        )}
+                        value={textareaText}
+                        onChange={(e) => setTextareaText(e.target.value)}
+                      />{" "}
+                    </div>
                     <button
+                      className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] min-w-[54px] rounded-full text-2xl text-white justify-end items-center"
                       onClick={(e) => {
                         e.preventDefault();
                         if (selectedChatId) {
@@ -366,7 +375,7 @@ export default function Home() {
                         scrollToBottom();
                       }}
                     >
-                      Send
+                      ▶
                     </button>
                   </div>
                 )}
@@ -389,41 +398,46 @@ export default function Home() {
               />
             </Fragment>
           ))}
-          <button
-            onClick={() => {
-              handleSubmit(onSubmit)();
-              setOpen((prev) => !prev);
-            }}
-            className="text-black"
-          >
-            send
-          </button>
+          <div className="flex justify-end">
+            <button
+              className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] min-w-[54px] rounded-full text-2xl text-white justify-end items-center mt-4 "
+              onClick={() => {
+                handleSubmit(onSubmit)();
+                setOpen((prev) => !prev);
+              }}
+            >
+              ▶
+            </button>
+          </div>
         </>
       </Modal>
 
       <Modal open={isOpenLinkForChanel} setOpen={() => setIsOpenLinkForChanel((prev) => !prev)}>
         <>
           <div className="text-black">Link</div>
-          <div className="text-black">
-            {" "}
+          <div className="text-black font-bold">
+            {process.env.NEXT_PUBLIC_URL_SITE}
             {"/"}
             {linkForChanel}
           </div>
-          <button
-            onClick={() => {
-              setIsOpenLinkForChanel((prev) => !prev);
-            }}
-            className="text-black"
-          >
-            Close
-          </button>
+
+          <div className="flex justify-end">
+            <button
+              className="transition-all hover:bg-blue-500 bg-custom-blue-100 h-[54px] px-6  rounded-md text-2xl text-white justify-end items-center"
+              onClick={() => {
+                setIsOpenLinkForChanel((prev) => !prev);
+              }}
+            >
+              Close
+            </button>{" "}
+          </div>
         </>
       </Modal>
     </main>
   );
 }
 
-function SignIn() {
+async function SignIn() {
   const signInWithGoogle = async () => {
     try {
       const res = await signInWithPopup(auth, googleAuthProvider);
@@ -431,8 +445,8 @@ function SignIn() {
         query(collection(db, "users"), where("email", "==", res.user.email)),
         (snapshot) => snapshot
       );
-      if (!isEmail) {
-        addDoc(collection(db, `users`), {
+      if (!isEmail?.length) {
+        await addDoc(collection(db, `users`), {
           email: res.user.email,
           firstName: res.user.displayName
         }).catch((err) => alert(err.message));

@@ -1,12 +1,15 @@
 import { auth } from "@/firebase/firebase";
 import React from "react";
 
-const Header = () => {
+type HeaderType = {
+  setHeaderName: string;
+};
+const Header = ({ setHeaderName }: HeaderType) => {
   return (
     <header>
-      <div className="flex justify-between pb-6 border-b-2 border-gray-50">
-     <div>App</div> 
-      <button onClick={() => auth.signOut()}> Sign Out</button>
+      <div className="flex justify-between py-2 border  shadow-sm border-gray-200 bg-white px-4 h-14 items-center">
+        <div className="text-bold text-base">{setHeaderName || 'App'} </div>
+        <button onClick={() => auth.signOut()}> Sign Out</button>
       </div>
     </header>
   );
